@@ -1,6 +1,14 @@
 local vim = vim
-local ts = require('nvim-treesitter')
 local ts_utils = require('nvim-treesitter.ts_utils')
+
+local function locate_document_node(node)
+  for subnode, _ in node:iter_children() do
+    if subnode:type() == 'document' then
+      return subnode
+    end
+  end
+  return nil
+end
 
 local function locate_node(node, path, n)
   if #path < n then
@@ -15,7 +23,7 @@ local function locate_node(node, path, n)
 	return locate_node(subnode:child(2), path, n+1)
       end
     end
-    print('no such key', key )
+    print('no such key ', path[n])
     return nil
   elseif node:child_count() == 1 then
     return locate_node(node:child(0), path, n)
@@ -53,7 +61,6 @@ end
 
 local M = {}
 function M.goto_definition()
-  local bufnr = vim.api.nvim_win_get_buf(0)
   local ref_tbl = extract_ref()
   if not ref_tbl then
     return nil
@@ -69,17 +76,17 @@ function M.goto_definition()
     vim.cmd{cmd = 'edit', args = {vim.fs.joinpath(local_dirname, fname)}}
   end
 
-    local tree = vim.treesitter.get_parser():parse()[1]
-    local target_node = locate_node(tree:root(), path, 2)
-    if target_node then
-      ts_utils.goto_node(target_node, false, false)
-    end
+  local tree = vim.treesitter.get_parser():parse()[1]
+  local target_node = locate_node(locate_document_node(tree:root()), path, 2)
+  if target_node then
+    ts_utils.goto_node(target_node:parent(), false, false)
+  end
 end
 
 function M.setup()
-  vim.api.nvim_create_autocmd({'BufEnter', 'BufWinEnter'}, {  
-    pattern = {'*.yaml'},                                 
-    callback = function(ev)   
+  vim.api.nvim_create_autocmd({'BufEnter', 'BufWinEnter'}, {
+    pattern = {'*.yaml'},
+    callback = function(ev)
       vim.api.nvim_set_keymap('n', 'gd', '', {noremap = true, callback = M.goto_definition})
       vim.api.nvim_set_keymap('n', '<c+]>', '', {noremap = false, callback = M.goto_definition})
     end
