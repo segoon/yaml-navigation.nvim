@@ -1,5 +1,4 @@
 local vim = vim
-local ts_utils = require('nvim-treesitter.ts_utils')
 
 local function locate_document_node(node)
   for subnode, _ in node:iter_children() do
@@ -35,7 +34,7 @@ end
 
 
 local function extract_ref()
-  local node = ts_utils.get_node_at_cursor(0):parent():parent()
+  local node = vim.treesitter.get_node():parent():parent()
   if node:type() ~= 'block_mapping_pair' then
     return nil
   end
@@ -79,7 +78,8 @@ function M.goto_definition()
   local tree = vim.treesitter.get_parser():parse()[1]
   local target_node = locate_node(locate_document_node(tree:root()), path, 2)
   if target_node then
-    ts_utils.goto_node(target_node:parent(), false, false)
+    local row, col = target_node:parent():start()
+    vim.api.nvim_win_set_cursor(0, {row + 1, col})
   end
 end
 
